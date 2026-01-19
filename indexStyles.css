@@ -1,47 +1,40 @@
-/* 전체 배경 */
-body {
+* {
+  box-sizing: border-box;
   margin: 0;
+  padding: 0;
+}
+
+body {
   height: 100vh;
-  background: linear-gradient(135deg, #0a1a2f, #102a4a);
+  background: linear-gradient(135deg, #0a1a33, #0f2a4d);
   display: flex;
   justify-content: center;
   align-items: center;
-  font-family: "Segoe UI", sans-serif;
-  color: #e6ecf5;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
-/* 중앙 정렬 컨테이너 */
 #app {
   text-align: center;
 }
 
-/* 버튼 스타일 */
 #danger-button {
-  background-color: #163a5f;
+  background-color: #142f5f;
   color: #ffffff;
   border: none;
   padding: 24px 48px;
-  font-size: 1.8rem;
-  font-weight: 600;
-  border-radius: 12px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s ease;
 }
 
 #danger-button:hover {
-  background-color: #1e4c7a;
+  background-color: #1b3f7a;
   transform: translateY(-2px);
 }
 
-/* 경고 메시지 */
-#warning-message {
-  margin-top: 24px;
-  font-size: 1.3rem;
-  color: #ff6b6b;
-}
-
-/* 숨김 처리 */
-.hidden {
-  display: none;
+#danger-button:active {
+  transform: translateY(1px);
 }

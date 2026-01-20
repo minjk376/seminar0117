@@ -7,11 +7,22 @@ const statusEl = document.getElementById("status");
 const API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 const MODEL = import.meta.env.VITE_OPENAI_MODEL || "gpt-4o-mini";
 
+/**
+ * ✅ 점심 메뉴 추천 챗봇 (맥락 유지)
+ * - history 배열을 그대로 API에 messages로 보내서 대화 맥락이 이어지게 함
+ * - 처음에 선호(매운/국물/가격/시간/알레르기 등) 물어보도록 유도
+ */
 const history = [
   {
     role: "system",
-    content:
-      "You are a helpful assistant. Keep answers concise. If unsure, ask a short follow-up question.",
+    content: [
+      "너는 '점심 메뉴 추천 챗봇'이야.",
+      "사용자가 점심 메뉴를 정하는 데 도움을 주고, 대답은 한국어로 간결하게 해.",
+      "매번 바로 하나만 고르기보다, 먼저 사용자의 상황을 1~2개 질문으로 확인하고(예: 매운 거 가능?, 예산, 혼밥/같이, 국물/면/밥, 다이어트 여부),",
+      "그 다음 3가지 후보를 제안한 뒤, 사용자가 고르기 쉽게 '오늘은 이거' 1개를 추천해.",
+      "사용자가 조건을 주면 그 조건을 최우선으로 반영해.",
+      "사용자가 '아무거나'라고 하면 무난한 선택 + 도전적인 선택 + 가벼운 선택 3개로 제안해.",
+    ].join(" "),
   },
 ];
 
@@ -43,25 +54,15 @@ function setBusy(isBusy, message = "") {
   statusEl.textContent = message;
 }
 
-function buildTranscript(messages) {
-  // Responses API에서 가장 단순하게 쓰기 위해 "대화 내용"을 텍스트로 합쳐 보냄
-  // (정교한 상태 관리는 response_id 등을 쓰는 방식도 있지만, 여기선 최대한 간단하게)
-  return messages
-    .filter((m) => m.role !== "system")
-    .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
-    .join("\n");
-}
-
-async function callOpenAI(userText) {
+async function callOpenAI() {
   if (!API_KEY) {
     throw new Error(
       "Missing API key. Put VITE_OPENAI_API_KEY in your .env and restart the dev server."
     );
   }
 
-  const transcript = buildTranscript([...history, { role: "user", content: userText }]);
-
-  const res = await fetch("https://api.openai.com/v1/responses", {
+  // ✅ Chat Completions로 messages(=history)를 그대로 보내 맥락 유지
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -69,24 +70,20 @@ async function callOpenAI(userText) {
     },
     body: JSON.stringify({
       model: MODEL,
-      input: transcript || userText,
+      messages: history,
+      temperature: 0.8,
     }),
   });
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(`OpenAI API error (${res.status}): ${errText || res.statusText}`);
+    throw new Error(
+      `OpenAI API error (${res.status}): ${errText || res.statusText}`
+    );
   }
 
   const data = await res.json();
-
-  // Responses API는 output 배열에 텍스트가 들어오는 형태가 일반적이라 이를 최대한 방어적으로 파싱
-  const text =
-    data?.output_text ||
-    data?.output?.[0]?.content?.find?.((c) => c.type === "output_text")?.text ||
-    data?.output?.[0]?.content?.[0]?.text ||
-    "";
-
+  const text = data?.choices?.[0]?.message?.content?.trim() || "";
   return text || "(No text output)";
 }
 
@@ -103,12 +100,11 @@ formEl.addEventListener("submit", async (e) => {
   setBusy(true, "Thinking…");
 
   try {
-    const botText = await callOpenAI(userText);
+    const botText = await callOpenAI();
     addBubble("bot", botText);
     history.push({ role: "assistant", content: botText });
     setBusy(false, "");
   } catch (err) {
-    // CORS/키 노출/네트워크 문제 등이 여기로 들어올 수 있음
     addBubble(
       "bot",
       "⚠️ API 호출에 실패했어요.\n\n- 브라우저 CORS 차단일 수 있어요\n- API 키가 없거나 유효하지 않을 수 있어요\n- 네트워크/권한 문제일 수 있어요\n\n자세한 오류: " +
@@ -119,5 +115,13 @@ formEl.addEventListener("submit", async (e) => {
   }
 });
 
-// 첫 안내 메시지
-addBubble("bot", "Hi! Type something and press Send 🙂");
+// ✅ 첫 안내 메시지(점심봇 톤으로)
+addBubble(
+  "bot",
+  "점심 뭐 먹을지 같이 정해볼까? 😋\n1) 매운 거 가능해?\n2) 오늘 예산/상황(혼밥/같이, 시간 여유) 알려줘!"
+);
+history.push({
+  role: "assistant",
+  content:
+    "점심 뭐 먹을지 같이 정해볼까? 😋\n1) 매운 거 가능해?\n2) 오늘 예산/상황(혼밥/같이, 시간 여유) 알려줘!",
+});
